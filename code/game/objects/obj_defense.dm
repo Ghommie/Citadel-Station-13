@@ -4,6 +4,7 @@
 	if(QDELETED(src))
 		stack_trace("[src] taking damage after deletion")
 		return
+	SEND_SIGNAL(src, COMSIG_OBJ_TAKE_DAMAGE, damage_amount, damage_type, damage_flag, armour_penetration)
 	if(sound_effect)
 		play_attack_sound(damage_amount, damage_type, damage_flag)
 	if(!(resistance_flags & INDESTRUCTIBLE) && obj_integrity > 0)

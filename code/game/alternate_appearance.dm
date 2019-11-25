@@ -26,7 +26,8 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 /datum/atom_hud/alternate_appearance/New(key)
 	..()
 	GLOB.active_alternate_appearances += src
-	appearance_key = key
+	appearance_key = key || appearance_key
+	hud_icons += appearance_key
 
 /datum/atom_hud/alternate_appearance/Destroy()
 	GLOB.active_alternate_appearances -= src
@@ -49,6 +50,7 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 	. = ..()
 	if(.)
 		LAZYREMOVE(A.alternate_appearances, appearance_key)
+		A.hud_list -= appearance_key
 
 
 //an alternate appearance that attaches a single image to a single atom
@@ -62,7 +64,6 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 	..()
 	theImage = I
 	target = I.loc
-	hud_icons = list(appearance_key)
 	add_to_hud(target, I)
 	if(target_sees_appearance && ismob(target))
 		add_hud_to(target)
@@ -84,7 +85,6 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 
 /datum/atom_hud/alternate_appearance/basic/remove_from_hud(atom/A)
 	. = ..()
-	A.hud_list -= appearance_key
 	if(. && !QDELETED(src))
 		qdel(src)
 
@@ -180,3 +180,120 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 	..(key, I, FALSE)
 	seer = M
 	add_hud_to(seer)
+
+
+/datum/atom_hud/alternate_appearance/shared
+	var/list/image/appearances = list() //we can't use hud_icons for these, lest we apply all the cached appearances on every target.
+	var/override_appearance = FALSE //wheter the appearance overrides the mob's appearance or not.
+	var/alpha_multiplier = 1 //multiplier (0 - 1), not RGB (0 - 255).
+	var/datum/atom_hud/alternate_appearance/shared/alt_appearance //purposely similar to /basic's ghost_appearance.
+	var/alt_appearance_type //the above's type created on New(), must be /shared.
+
+/datum/atom_hud/alternate_appearance/shared/New(key)
+	..()
+	if(alt_appearance_type)
+		alt_appearance = new alt_appearance_type(key ? "[key]_alt" : null)
+
+/datum/atom_hud/alternate_appearance/shared/proc/register_appearance(atom/A, id)
+	if(!A)
+		return
+	var/disguise = id || "[REF(A)]" //must be a text string
+	var/image/I = image(A.icon, A.icon_state, A.layer)
+	I.copy_overlays(A)
+	I.override = override_appearance
+	I.alpha = CLAMP(round(A.alpha * alpha_multiplier), 0, 255)
+	appearances[disguise] = I
+	if(alt_appearance)
+		INVOKE_ASYNC(alt_appearance, .proc/register_appearance, A, disguise)
+	return I
+
+/datum/atom_hud/alternate_appearance/shared/add_to_hud(atom/A, disguise)
+	if(!A || (A.alternate_appearances && A.alternate_appearances[appearance_key]))
+		return FALSE
+	var/image/C = appearances[disguise]
+	if(!C)
+		return
+	var/image/I = image(loc = A)
+	I.appearance = C
+	LAZYSET(A.hud_list, appearance_key, I)
+	if(alt_appearance)
+		INVOKE_ASYNC(alt_appearance, /datum/atom_hud.proc/add_to_hud, arglist(args))
+	. = ..() //our return value differs from the parent, should be set.
+	hudatoms[A] = disguise // Yes, we are using hudatoms as an associative list.
+
+/datum/atom_hud/alternate_appearance/shared/proc/unregister_appearance(disguise)
+	var/image/I = appearances[disguise]
+	if(I)
+		qdel(I)
+	appearances -= disguise
+	for(var/A in hudatoms)
+		if(hudatoms[A] == disguise)
+			remove_from_hud(A, FALSE)
+	if(alt_appearance)
+		INVOKE_ASYNC(alt_appearance, .proc/unregister_appearance, disguise)
+
+/datum/atom_hud/alternate_appearance/shared/remove_from_hud(atom/A, sync = TRUE)
+	var/image/I = A?.hud_list[appearance_key]
+	. = ..()
+	if(!.)
+		return
+	if(sync && alt_appearance)
+		INVOKE_ASYNC(alt_appearance, /datum/atom_hud.proc/remove_from_hud, A)
+	if(I)
+		qdel(I)
+
+
+//alternate_appearance / component hybrid frankenstein. The component half can be found in components/chameleon.dm.
+/datum/atom_hud/alternate_appearance/shared/chameleon
+	appearance_key = CHAMELEON_HUD
+	var/use_alt_holo_mask = FALSE
+	alt_appearance_type = /datum/atom_hud/alternate_appearance/chameleon/spectacles_view
+
+/datum/atom_hud/alternate_appearance/shared/chameleon/add_to_hud(atom/A, disguise, image/mask, image/alt_mask)
+	. = ..()
+	if(!.)
+		return
+	var/image/M = use_alt_holo_mask ? args[4] : args[3]
+	apply_mask(. , M)
+
+#if DM_VERSION >= 513
+
+/datum/atom_hud/alternate_appearance/shared/chameleon/proc/apply_mask(image/I, image/M)
+	if(M)
+		var/mutable_appearance/MA = new()
+		MA.appearance = H
+		target_rs = MA.generate_render_target()
+		I.filters += filter(type = "alpha", render_source = target_rs)
+		return MA
+
+#else
+
+/datum/atom_hud/alternate_appearance/shared/chameleon/proc/apply_mask()
+	return
+
+#endif
+
+/datum/atom_hud/alternate_appearance/chameleon/spectacles_view
+	appearance_key = CHAM_SPECTACLES_HUD
+	override_appearance = FALSE
+	alpha_multiplier = 0.5
+	use_alt_holo_mask = TRUE
+
+/obj/item/chameleonpaste
+	var/list/all_disguises //contains current diguise ids, and their associated infos.
+	var/image/holo_mask
+	var/image/alt_holo_mask
+	var/static/cham_id = 0
+
+/obj/item/chameleonpaste/Initialize()
+	. = ..()
+	holo_mask = image('icons/effects/effects.dmi', "disguise_glitch")
+	alt_holo_mask = image('icons/effects/effects.dmi', "scanline")
+
+/obj/item/chameleonpaste/proc/add_appearance(obj/O)
+	var/datum/chameleon_disguise/D = new(O)
+	LAZYADD(all_disguises, D)
+
+/obj/item/chameleonpaste/proc/apply_appearance(obj/O, D)
+	var/datum/chameleon_disguise/D = all_disguises[disguise]
+	O.AddComponent(/datum/component/chameleon, D, holo_mask, alt_holo_mask)

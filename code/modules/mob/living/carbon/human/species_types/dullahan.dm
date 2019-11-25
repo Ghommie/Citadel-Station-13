@@ -139,7 +139,7 @@
 
 /obj/item/dullahan_relay/proc/examinate_check(mob/source, atom/A)
 	if(source.client.eye == src && ((A in view(source.client.view, src)) || (isturf(A) && source.sight & SEE_TURFS) || (ismob(A) && source.sight & SEE_MOBS) || (isobj(A) && source.sight & SEE_OBJS)))
-		return COMPONENT_ALLOW_EXAMINE
+		return COMPONENT_ALLOW_EXAMINATE
 
 /obj/item/dullahan_relay/proc/include_owner(datum/source, list/processing_list, list/hearers)
 	if(!QDELETED(owner))

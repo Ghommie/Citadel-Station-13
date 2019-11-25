@@ -13,6 +13,7 @@ GLOBAL_LIST_INIT(huds, list(
 	DATA_HUD_ABDUCTOR = new/datum/atom_hud/abductor(),
 	DATA_HUD_SENTIENT_DISEASE = new/datum/atom_hud/sentient_disease(),
 	DATA_HUD_AI_DETECT = new/datum/atom_hud/ai_detector(),
+	ALT_APPEARANCE_HUD_CHAMELEON = new/datum/atom_hud/alternate_appearance/chameleon(),
 	ANTAG_HUD_CULT = new/datum/atom_hud/antag(),
 	ANTAG_HUD_REV = new/datum/atom_hud/antag(),
 	ANTAG_HUD_OPS = new/datum/atom_hud/antag(),
@@ -65,6 +66,7 @@ GLOBAL_LIST_INIT(huds, list(
 	for(var/mob/M in hudusers)
 		remove_from_single_hud(M, A)
 	hudatoms -= A
+	SEND_SIGNAL(A, COMSIG_ATOM_REMOVED_FROM_HUD, src)
 	return TRUE
 
 /datum/atom_hud/proc/remove_from_single_hud(mob/M, atom/A) //unsafe, no sanity apart from client

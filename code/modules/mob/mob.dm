@@ -310,7 +310,7 @@
 	if(!client)
 		return
 
-	if(!(SEND_SIGNAL(src, COMSIG_MOB_EXAMINATE, A) & COMPONENT_ALLOW_EXAMINE) && ((client.eye != src && client.eye != loc) || (isturf(A) && !(sight & SEE_TURFS) && !(A in view(client ? client.view : world.view, src)))))
+	if(!(SEND_SIGNAL(src, COMSIG_MOB_EXAMINATE, A) & COMPONENT_ALLOW_EXAMINATE) && ((client.eye != src && client.eye != loc) || (isturf(A) && !(sight & SEE_TURFS) && !(A in view(client ? client.view : world.view, src)))))
 		//cameras & co don't allow users to examine far away things, also shift-click catcher may issue examinate() calls for out-of-sight turfs
 		return
 
@@ -319,6 +319,8 @@
 		return
 
 	face_atom(A)
+	if(SEND_SIGNAL(A, COMSIG_PARENT_PRE_EXAMINE) & COMPONENT_STOP_EXAMINE)
+		return
 	A.examine(src)
 
 //same as above

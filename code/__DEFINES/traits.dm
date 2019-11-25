@@ -153,12 +153,13 @@
 #define TRAIT_NYMPHO			"nymphomania"
 #define TRAIT_MASO              "masochism"
 #define TRAIT_EXHIBITIONIST		"exhibitionist"
-#define	TRAIT_HIGH_BLOOD        "high_blood"
+#define TRAIT_HIGH_BLOOD        "high_blood"
 #define TRAIT_PHARMA            "hepatic_pharmacokinesis"
 #define TRAIT_PARA              "paraplegic"
 #define TRAIT_EMPATH			"empath"
 #define TRAIT_FRIENDLY			"friendly"
 #define TRAIT_ASSBLASTUSA       "assblastusa"
+#define TRAIT_SPECTACLES_VIEW	"spectacles_view"
 #define TRAIT_CULT_EYES 		"cult_eyes"
 
 

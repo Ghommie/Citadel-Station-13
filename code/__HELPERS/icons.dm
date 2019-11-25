@@ -1201,3 +1201,30 @@ GLOBAL_LIST_INIT(freon_color_matrix, list("#2E5E69", "#60A2A8", "#A1AFB1", rgb(0
 
 	var/icon/I = getFlatIcon(thing)
 	return icon2html(I, target)
+
+#if DM_VERSION >= 513
+
+//Applies pattern overlay that does not go outside the object
+/proc/generate_pattern(atom/target,pattern_icon,pattern_icon_state,pattern_alpha)
+	var/mutable_appearance/MA = mutable_appearance(pattern_icon,pattern_icon_state)
+	MA.alpha = pattern_alpha
+	MA.appearance_flags = RESET_ALPHA | RESET_COLOR
+	var/target_rs = target.generate_render_target()
+	MA.filters += filter(type="alpha",render_source = target_rs)
+	return MA
+
+GLOBAL_VAR_INIT(render_target_id,1)
+
+/atom/proc/generate_render_target()
+	render_target = "rs_[GLOB.render_target_id++]"
+	return render_target
+
+#else
+
+/proc/generate_pattern()
+	return
+
+/atom/proc/generate_render_target()
+	return
+
+#endif

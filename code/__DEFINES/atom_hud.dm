@@ -24,8 +24,10 @@
 #define NANITE_HUD "20"
 #define DIAG_NANITE_FULL_HUD "21"
 #define RAD_HUD			"22"	//radation alerts for medical huds
+#define CHAMELEON_HUD "23" //alternate appearances for a given object.
+#define CHAM_SPECTACLES_HUD "24"
 //for antag huds. these are used at the /mob level
-#define ANTAG_HUD		"23"
+#define ANTAG_HUD		"25"
 
 //by default everything in the hud_list of an atom is an image
 //a value in hud_list with one of these will change that behavior
