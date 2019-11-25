@@ -66,7 +66,6 @@ GLOBAL_LIST_INIT(huds, list(
 	for(var/mob/M in hudusers)
 		remove_from_single_hud(M, A)
 	hudatoms -= A
-	SEND_SIGNAL(A, COMSIG_ATOM_REMOVED_FROM_HUD, src)
 	return TRUE
 
 /datum/atom_hud/proc/remove_from_single_hud(mob/M, atom/A) //unsafe, no sanity apart from client

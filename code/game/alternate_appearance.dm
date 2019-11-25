@@ -46,7 +46,7 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 		LAZYINITLIST(A.alternate_appearances)
 		A.alternate_appearances[appearance_key] = src
 
-/datum/atom_hud/alternate_appearance/remove_from_hud(atom/A)
+/datum/atom_hud/alternate_appearance/remove_from_hud(atom/A, sync = TRUE)
 	. = ..()
 	if(.)
 		LAZYREMOVE(A.alternate_appearances, appearance_key)
@@ -83,7 +83,7 @@ GLOBAL_LIST_EMPTY(active_alternate_appearances)
 	A.hud_list[appearance_key] = theImage
 	. = ..()
 
-/datum/atom_hud/alternate_appearance/basic/remove_from_hud(atom/A)
+/datum/atom_hud/alternate_appearance/basic/remove_from_hud(atom/A, sync = TRUE)
 	. = ..()
 	if(. && !QDELETED(src))
 		qdel(src)
@@ -233,21 +233,22 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 		INVOKE_ASYNC(alt_appearance, .proc/unregister_appearance, disguise)
 
 /datum/atom_hud/alternate_appearance/shared/remove_from_hud(atom/A, sync = TRUE)
-	var/image/I = A?.hud_list[appearance_key]
 	. = ..()
 	if(!.)
 		return
 	if(sync && alt_appearance)
 		INVOKE_ASYNC(alt_appearance, /datum/atom_hud.proc/remove_from_hud, A)
-	if(I)
-		qdel(I)
 
 
-//alternate_appearance / component hybrid frankenstein. The component half can be found in components/chameleon.dm.
+//alternate_appearance / component hybrid frankenstein. The other half can be found in components/chameleon.dm.
 /datum/atom_hud/alternate_appearance/shared/chameleon
 	appearance_key = CHAMELEON_HUD
 	var/use_alt_holo_mask = FALSE
 	alt_appearance_type = /datum/atom_hud/alternate_appearance/chameleon/spectacles_view
+
+/datum/atom_hud/alternate_appearance/shared/chameleon/mobShouldSee(mob/M)
+	if(!isobserver(source) && !HAS_TRAIT(source, TRAIT_SPECTACLES_VIEW))
+		return TRUE
 
 /datum/atom_hud/alternate_appearance/shared/chameleon/add_to_hud(atom/A, disguise, image/mask, image/alt_mask)
 	. = ..()
@@ -273,27 +274,52 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 
 #endif
 
-/datum/atom_hud/alternate_appearance/chameleon/spectacles_view
+/datum/atom_hud/alternate_appearance/shared/chameleon/spectacles_view
 	appearance_key = CHAM_SPECTACLES_HUD
 	override_appearance = FALSE
 	alpha_multiplier = 0.5
 	use_alt_holo_mask = TRUE
 
-/obj/item/chameleonpaste
-	var/list/all_disguises //contains current diguise ids, and their associated infos.
+/datum/atom_hud/alternate_appearance/shared/chameleon/spectacles_view/mobShouldSee(mob/M)
+	if(!(..())) //we see what they can't, and viceversa.
+		return TRUE
+
+/obj/item/chameleondisguiser
+	var/list/datum/chameleon_appearance/all_disguises //contains the current diguises.
 	var/image/holo_mask
 	var/image/alt_holo_mask
 	var/static/cham_id = 0
+	var/cham_limit = 12
+	var/slot_limit = 8
 
-/obj/item/chameleonpaste/Initialize()
+/obj/item/chameleondisguiser/Initialize()
 	. = ..()
 	holo_mask = image('icons/effects/effects.dmi', "disguise_glitch")
 	alt_holo_mask = image('icons/effects/effects.dmi', "scanline")
 
-/obj/item/chameleonpaste/proc/add_appearance(obj/O)
-	var/datum/chameleon_disguise/D = new(O)
-	LAZYADD(all_disguises, D)
+/obj/item/chameleondisguiser/proc/add_appearance(obj/O)
+	if(LAZYLEN(all_disguises) >= slot_limit)
+		//warning message about hardware limitations here
+		return
+	var/datum/chameleon_appearance/CA = new(O)
+	RegisterSignal(CA, COMSIG_PARENT_PREQDELETED, .proc/clear_from_list)
+	LAZYADD(all_disguises, CA)
 
-/obj/item/chameleonpaste/proc/apply_appearance(obj/O, D)
-	var/datum/chameleon_disguise/D = all_disguises[disguise]
-	O.AddComponent(/datum/component/chameleon, D, holo_mask, alt_holo_mask)
+/obj/item/chameleondisguiser/proc/clear_from_list(datum/chameleon_appearance/source)
+	LAZYREMOVE(all_disguises, source)
+
+/obj/item/chameleondisguiser/proc/apply_appearance(obj/O, datum/chameleon_appearance/CA)
+	var/num_cham = 0
+	for(var/A in all_disguises)
+		var/datum/chameleon_appearance/D = A
+		num_cham += LAZYLEN(D.active_components)
+		if(num_cham >= cham_limit)
+			//warning message about hardware limitations here
+			return
+	var/datum/component/chameleon/C = O.AddComponent(/datum/component/chameleon, CA, holo_mask, alt_holo_mask)
+
+/obj/item/chameleondisguiser/proc/remove_appearance(datum/component/chameleon/C, datum/chameleon_appearance/CA)
+	if(!(C.appearance in all_disguises))
+		//warning message hinting incompatible holographic appearance of different source.
+		return
+	qdel(C)
