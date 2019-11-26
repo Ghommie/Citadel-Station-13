@@ -199,7 +199,8 @@
 		return
 	var/mob/M = I.loc
 	var/left_rights = M.get_held_index_of_item(I) % 2
-	active_inhand = cham.hud.add_to_hud(standing, left_rights ?  cham.left_inhand : cham.right_inhand, cham.holo_mask, cham.alt_holo_mask)
+	active_inhand = cham.hud.add_to_hud(standing, left_rights ?  cham.left_inhand : cham.right_inhand)
+	cham.apply_disguise_mask(active_inhand)
 	active_inhand.layer = cham.worn_layer || default_layer
 
 /datum/component/chameleon/proc/del_held_cham(datum/source, mob/user)
