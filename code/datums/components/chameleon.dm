@@ -96,6 +96,7 @@
 			if(ispath(cham.copypath, /obj/item))
 				RegisterSignal(A, COMSIG_ITEM_EQUIPPED, .proc/unmodify_if_worn) //we aren't going past inhands right now.
 				RegisterSignal(A, COMSIG_ITEM_BUILD_WORN_ICON, .proc/build_held_cham)
+				RegisterSignal(A, COMSIG_ITEM_DROPPED, .proc/del_held_cham)
 			else //bulky objects can't be normally held anyway, and also lack inhands.
 				RegisterSignal(A, COMSIG_ITEM_EQUIPPED, .proc/unmodify)
 	prev_name = A.name
@@ -106,7 +107,7 @@
 /datum/component/chameleon/UnregisterFromParent()
 	UnregisterSignal(parent, list(COMSIG_ATOM_EMP_ACT, COMSIG_ATOM_EX_ACT, COMSIG_OBJ_TAKE_DAMAGE, COMSIG_ITEM_ATTACK,
 								COMSIG_ITEM_EQUIPPED, COMSIG_PARENT_PRE_EXAMINE, COMSIG_ATOM_GET_EXAMINE_NAME,
-								COMSIG_ITEM_BUILD_WORN_ICON))
+								COMSIG_ITEM_BUILD_WORN_ICON, COMSIG_ITEM_DROPPED))
 
 /datum/component/chameleon/Destroy(forced = FALSE, _end_visual)
 	STOP_PROCESSING(SSobj, src)
@@ -175,6 +176,10 @@
 	active_inhand = cham.hud.add_to_hud(standing, left_rights ?  cham.left_inhand : cham.right_inhand, cham.holo_mask, cham.alt_holo_mask)
 	active_inhand.layer = cham.worn_layer || default_layer
 
+/datum/component/chameleon/proc/del_held_cham(datum/source, mob/user)
+	if(active_inhand)
+		QDEL_NULL(active_inhand)
+
 /datum/component/chameleon/proc/disrupt_anim()
 	if(anim_busy)
 		return
@@ -183,13 +188,21 @@
 	var/A2 = disguise.alpha
 	var/C1 = list(rgb(77,77,77), rgb(150,150,150), rgb(28,28,28), rgb(0,0,0))
 	var/C2 = disguise.color
-	for(var/A in list(disguise, active_inhand))
-		var/image/I = A
-		if(I?.override)
-			I.override = FALSE
-			addtimer(VARSET_CALLBACK(I, override, TRUE), 1)
-			addtimer(VARSET_CALLBACK(I, override, FALSE), 2)
-			addtimer(VARSET_CALLBACK(I, override, TRUE), 3)
+	if(active_inhand?.override)
+		active_inhand.override = FALSE
+		var/o_alpha = active_inhand.alpha
+		active_inhand.alpha = 0
+		addtimer(VARSET_CALLBACK(active_inhand, alpha, o_alpha), 1)
+		addtimer(VARSET_CALLBACK(active_inhand, override, TRUE), 1)
+		addtimer(VARSET_CALLBACK(active_inhand, alpha, 0), 2)
+		addtimer(VARSET_CALLBACK(active_inhand, override, FALSE), 2)
+		addtimer(VARSET_CALLBACK(active_inhand, alpha, o_alpha), 3)
+		addtimer(VARSET_CALLBACK(active_inhand, override, TRUE), 3)
+	if(disguise.override)
+		disguise.override = FALSE
+		addtimer(VARSET_CALLBACK(disguise, override, TRUE), 1)
+		addtimer(VARSET_CALLBACK(disguise, override, FALSE), 2)
+		addtimer(VARSET_CALLBACK(disguise, override, TRUE), 3)
 	animate(disguise, alpha = A1, color = C1, time = 2)
 	animate(disguise, alpha = A2, color = C2, time = 2)
 	addtimer(VARSET_CALLBACK(src, anim_busy, FALSE), 8)

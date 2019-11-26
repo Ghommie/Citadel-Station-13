@@ -191,6 +191,9 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 
 /datum/atom_hud/alternate_appearance/shared/New(key)
 	..()
+	for(var/mob in GLOB.mob_list)
+		if(mobShouldSee(mob))
+			add_hud_to(mob)
 	if(alt_appearance_type)
 		alt_appearance = new alt_appearance_type(key ? "[key]_alt" : null)
 
@@ -226,6 +229,16 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 		INVOKE_ASYNC(arglist(arguments))
 	. = ..() //our return value differs from the parent, should be set.
 	hudatoms[A] = disguise // Yes, we are using hudatoms as an associative list.
+
+/datum/atom_hud/alternate_appearance/shared/proc/switch_hud(mob/M)
+	if(!alt_appearance)
+		return FALSE
+	if(M in hudusers)
+		remove_hud_from(M)
+		alt_appearance.add_hud_to(M)
+	else
+		alt_appearance.remove_hud_from(M)
+		add_hud_to(M)
 
 /datum/atom_hud/alternate_appearance/shared/proc/unregister_appearance(disguise)
 	var/image/I = appearances[disguise]
@@ -287,6 +300,16 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 /datum/atom_hud/alternate_appearance/shared/chameleon/spectacles_view/mobShouldSee(mob/M)
 	if(!(..())) //we see what they can't, and viceversa.
 		return TRUE
+
+/datum/atom_hud/alternate_appearance/shared/chameleon/add_hud_to(mob/M)
+	. = ..()
+	if(. && hudusers[M] == 1) //M has just gained access to the hud
+		ADD_TRAIT(M, TRAIT_SPECTACLES_VIEW, HUD_TRAIT)
+
+/datum/atom_hud/alternate_appearance/shared/chameleon/remove_hud_from(mob/M)
+	. = ..()
+	if(. && !(M in hudusers)) //M has just lost access to the the hud
+		REMOVE_TRAIT(M, TRAIT_SPECTACLES_VIEW, HUD_TRAIT)
 
 /obj/item/chameleondisguiser
 	var/list/datum/chameleon_appearance/all_disguises //contains the current diguises.
