@@ -45,21 +45,24 @@
 #define DATA_HUD_SENTIENT_DISEASE		8
 #define DATA_HUD_AI_DETECT				9
 
+//Well, this one is an alternate appearance, no need to manually update mob code to fit it.
+#define ALT_APPEARANCE_HUD_CHAMELEON	10
+
 //antag HUD defines
-#define ANTAG_HUD_CULT			10
-#define ANTAG_HUD_REV			11
-#define ANTAG_HUD_OPS			12
-#define ANTAG_HUD_WIZ			13
-#define ANTAG_HUD_SHADOW    	14
-#define ANTAG_HUD_TRAITOR 		15
-#define ANTAG_HUD_NINJA 		16
-#define ANTAG_HUD_CHANGELING 	17
-#define ANTAG_HUD_ABDUCTOR 		18
-#define ANTAG_HUD_DEVIL			19
-#define ANTAG_HUD_SINTOUCHED	20
-#define ANTAG_HUD_SOULLESS		21
-#define ANTAG_HUD_CLOCKWORK		22
-#define ANTAG_HUD_BROTHER		23
+#define ANTAG_HUD_CULT			11
+#define ANTAG_HUD_REV			12
+#define ANTAG_HUD_OPS			13
+#define ANTAG_HUD_WIZ			14
+#define ANTAG_HUD_SHADOW    	15
+#define ANTAG_HUD_TRAITOR 		16
+#define ANTAG_HUD_NINJA 		17
+#define ANTAG_HUD_CHANGELING 	18
+#define ANTAG_HUD_ABDUCTOR 		19
+#define ANTAG_HUD_DEVIL			20
+#define ANTAG_HUD_SINTOUCHED	21
+#define ANTAG_HUD_SOULLESS		22
+#define ANTAG_HUD_CLOCKWORK		23
+#define ANTAG_HUD_BROTHER		24
 
 // Notification action types
 #define NOTIFY_JUMP "jump"

@@ -4,179 +4,194 @@
 	var/datum/atom_hud/alternate_appearance/shared/hud
 	var/list/datum/component/chameleon/active_components
 	var/id
-	var/static/cham_id
-	var/timer = 20 MINUTES //set it to CHAMELEON_NO_EXPIRE to disable the component's expiration time.
+	var/static/cham_id = 0
+	var/copypath
+	var/timer = CHAMELEON_NO_EXPIRE //in minutes, set to CHAMELEON_NO_EXPIRE to disable the component's expiration time.
 	var/name
 	var/desc
 	var/gender
-	var/worn_state
 	var/worn_layer
-	var/righthand_icon
-	var/list/right_overlays
-	var/lefthand_icon
-	var/list/left_overlays
-	var/worn_color
-	var/worn_alpha
-	var/end_visual = /obj/effect/temp_visual/decoy/fading/halfsecond
-	var/disruptable = TRUE
+	var/mutable_appearance/right_inhand
+	var/mutable_appearance/left_inhand
+	var/image/holo_mask
+	var/image/alt_holo_mask
+	var/end_visual = /obj/effect/temp_visual/decoy/fading/halfsecond //the temporary visual spawned whenever one of the components is removed.
+	var/disruptable = TRUE //wheter attacking and other sort of things will disrupt the
 
-/datum/chameleon_appearance/New(atom/A, datum/atom_hud/alternate_appearance/shared/C, _timer)
+/datum/chameleon_appearance/New(atom/A, datum/atom_hud/alternate_appearance/shared/C, _timer, _holo_mask, _alt_holo_mask)
 	hud = C || GLOB.huds[ALT_APPEARANCE_HUD_CHAMELEON]
 	id = "cham_[++cham_id]"
 	timer = _timer || timer
+	holo_mask = image('icons/effects/effects.dmi', _holo_mask)
+	alt_holo_mask = image('icons/effects/effects.dmi', _alt_holo_mask)
 	if(A)
-		name = A.name
-		gender = A.gender
-		C.register_appearance(A, id)
-		var/mob/living/carbon/human/dummy/mannequin = generate_or_wait_for_human_dummy(DUMMY_HUMAN_SLOT_EXAMINE, FALSE)
-		desc = A.examine(mannequin)
-		if(isitem(A))
-			var/obj/item/I = A
-			worn_state = I.item_state || I.icon_state
-			worn_layer = I.alternate_worn_layer
-			righthand_icon = I.righthand_file
-			right_overlays = worn_overlays(TRUE, righthand_icon)
-			lefthand_icon = I.lefthand_file
-			left_overlays = worn_overlays(TRUE, lefthand_icon)
-			worn_color = I.color
-			worn_alpha = I.alpha
+		disguise_as(A)
+
+/datum/chameleon_appearance/proc/disguise_as(atom/A)
+	copypath = A.type
+	name = A.name
+	gender = A.gender
+	hud.register_appearance(A, id)
+	var/mob/living/carbon/human/dummy/mannequin = generate_or_wait_for_human_dummy(DUMMY_HUMAN_SLOT_EXAMINE, FALSE)
+	desc = A.examine(mannequin)
+	if(isitem(A)) //registering easy inhands disguises here.
+		var/obj/item/I = A
+		var/worn_state = I.item_state || I.icon_state
+		worn_layer = I.alternate_worn_layer
+		left_inhand = I.build_worn_icon(worn_state, HANDS_LAYER, I.lefthand_file, TRUE)
+		hud.register_appearance(left_inhand, create_copy = TRUE)
+		right_inhand = I.build_worn_icon(worn_state, HANDS_LAYER, I.righthand_file, TRUE)
+		hud.register_appearance(right_inhand, create_copy = TRUE)
 
 /datum/chameleon_appearance/Destroy()
-	QDEL_LIST(active_components)
+	for(var/A in active_components)
+		var/datum/component/chameleon/C = A
+		qdel(C, FALSE, end_visual)
 	hud.unregister_appearance(id)
-	hud = null
-	if(left_overlays)
-		QDEL_NULL(left_overlays)
-	if(right_overlays)
-		QDEL_NULL(right_overlays)
+	if(left_inhand)
+		hud.unregister_appearance(left_inhand) //it'll delete them.
+	if(right_inhand)
+		hud.unregister_appearance(right_inhand) //idem
 	return ..()
 
 ////////////////////////////////////////
 
 /datum/component/chameleon //not to be confused with chameleon clothing.
-	var/datum/chameleon_appearance/appearance
-	var/image/disguiser
+	var/datum/chameleon_appearance/cham
+	var/image/disguise
 	var/prev_name
-	var/time_left
+	var/lifespan = CHAMELEON_NO_EXPIRE
 	var/timer_id
 	var/expiration_date
 	var/anim_busy = FALSE
+	var/disruptable = TRUE
+	var/image/active_inhand
 
-/datum/component/chameleon/Initialize(datum/chameleon_appearance/CA, holo_mask, alt_holo_mask)
+/datum/component/chameleon/Initialize(datum/chameleon_appearance/CA)
 	if(!ismovableatom(parent) || !CA || !istype(CA))
 		return COMPONENT_INCOMPATIBLE
-	var/list/arguments = list(parent, appearance) + args.Copy(2)
-	disguiser = CA.hud.add_to_hud(arglist(arguments))
-	if(!disguiser)
+	disguise = CA.hud.add_to_hud(parent, CA.id, CA.holo_mask, CA.alt_holo_mask)
+	if(!disguise)
 		return COMPONENT_INCOMPATIBLE
 	LAZYADD(CA.active_components, src)
-	appearance = CA
+	cham = CA
 	RegisterSignal(CA, COMSIG_PARENT_PREQDELETED, .proc/unmodify)
-	description = CA.desc
-	alt_name = CA.name
 	disruptable = CA.disruptable
-	end_visual = CA.end_visual
-	time_left = CA.timer
-	if(time_left != CHAMELEON_NO_EXPIRE)
-		expiration_date = world.time + time_left
-		timer_id = addtimer(CALLBACK(src, .proc/unmodify) time_left, TIMER_UNIQUE|TIMER_OVERRIDE|TIMER_NO_HASH_WAIT|TIMER_STOPPABLE)
+	lifespan = CA.timer
+	if(lifespan != CHAMELEON_NO_EXPIRE)
+		expiration_date = world.time + lifespan
+		timer_id = addtimer(CALLBACK(src, .proc/unmodify), lifespan, TIMER_UNIQUE|TIMER_OVERRIDE|TIMER_NO_HASH_WAIT|TIMER_STOPPABLE)
 
 /datum/component/chameleon/RegisterWithParent()
 	var/atom/movable/A = parent
 	if(disruptable)
 		RegisterSignal(A, COMSIG_ATOM_EMP_ACT, .proc/disrupt_emp)
 		RegisterSignal(A, COMSIG_ATOM_EX_ACT, .proc/disrupt_ex_act)
-		if(isobj(A))
-			RegisterSignal(A, COMSIG_OBJ_TAKE_DAMAGE, .proc/disrupt_obj)
-			if(isitem(A))
-				RegisterSignal(A, COMSIG_ITEM_ATTACK, .proc/disrupt_item)
-				RegisterSignal(A, COMSIG_ITEM_EQUIPPED, .proc/unmodify_if_worn) //we aren't going past inhands.
-				RegisterSignal(A, COMSIG_ITEM_BUILD_WORN_ICON, .proc/build_worn_cham)
-			else
-				RegisterSignal(A, COMSIG_ITEM_EQUIPPED, .proc/unmodify) //bulky objects can't be normally held anyway, and also lack inhands.
+	if(isobj(A))
+		if(disruptable)
+			RegisterSignal(A, COMSIG_OBJ_TAKE_DAMAGE, .proc/disrupt_damage)
+		if(isitem(A))
+			if(disruptable)
+				RegisterSignal(A, COMSIG_ITEM_ATTACK, .proc/disrupt_attack)
+			if(ispath(cham.copypath, /obj/item))
+				RegisterSignal(A, COMSIG_ITEM_EQUIPPED, .proc/unmodify_if_worn) //we aren't going past inhands right now.
+				RegisterSignal(A, COMSIG_ITEM_BUILD_WORN_ICON, .proc/build_held_cham)
+			else //bulky objects can't be normally held anyway, and also lack inhands.
+				RegisterSignal(A, COMSIG_ITEM_EQUIPPED, .proc/unmodify)
 	prev_name = A.name
-	A.name = appearance.name
+	A.name = cham.name
 	RegisterSignal(A, COMSIG_PARENT_PRE_EXAMINE, .proc/cham_examine)
 	RegisterSignal(A, COMSIG_ATOM_GET_EXAMINE_NAME, .proc/cham_article)
 
 /datum/component/chameleon/UnregisterFromParent()
-	UnregisterSignal(parent, list(COMSIG_ATOM_EMP_ACT, COMSIG_ATOM_EX_ACT, COMSIG_OBJ_TAKE_DAMAGE, COMSIG_ITEM_ATTACK, COMSIG_ITEM_EQUIPPED, COMSIG_PARENT_PRE_EXAMINE))
+	UnregisterSignal(parent, list(COMSIG_ATOM_EMP_ACT, COMSIG_ATOM_EX_ACT, COMSIG_OBJ_TAKE_DAMAGE, COMSIG_ITEM_ATTACK,
+								COMSIG_ITEM_EQUIPPED, COMSIG_PARENT_PRE_EXAMINE, COMSIG_ATOM_GET_EXAMINE_NAME,
+								COMSIG_ITEM_BUILD_WORN_ICON))
 
-/datum/component/chameleon/Destroy()
-	LAZYREMOVE(D.active_components, src)
-	var/atom/movable/A = parent
+/datum/component/chameleon/Destroy(forced = FALSE, _end_visual)
 	STOP_PROCESSING(SSobj, src)
-	if(!QDELETED(A) && end_visual)
-		new end_visual (get_turf(A), disguiser)
+	if(cham)
+		LAZYREMOVE(cham.active_components, src)
+	var/atom/movable/A = parent
+	var/end_visual = _end_visual || cham?.end_visual
+	if(end_visual && !QDELETED(A))
+		new end_visual (get_turf(A), disguise)
 		A.name = prev_name
-		if(ismob(A.loc))
-			var/mob/living/M = A.loc
-			if(M.is_holding(A))
-				var/obj/item/I = A
-				addtimer(M, /mob.proc/update_inv_hands), 2) //updating the mob's held items overlays soon.
 	return ..()
-
-/datum/component/chameleon/proc/unmodify_if_worn(datum/source, mob/equipper, slot)
 
 /datum/component/chameleon/proc/unmodify()
 	if(!QDELETED(src))
 		qdel(src)
 
+/datum/component/chameleon/proc/unmodify_if_worn(datum/source, mob/equipper, slot)
+	var/allowed_slots = SLOT_GENERC_DEXTROUS_STORAGE|SLOT_IN_BACKPACK|SLOT_S_STORE|SLOT_R_STORE|SLOT_L_STORE|SLOT_HANDS
+	if(!CHECK_BITFIELD(allowed_slots, slotdefine2slotbit(slot)))
+		qdel(src)
+
+/datum/component/chameleon/vv_edit_var(var_name, var_value)
+	var/old_lifespan = lifespan
+	var/old_disruptable = disruptable
+	. = ..()
+	if(!.)
+		return
+	switch(var_name)
+		if(NAMEOF(src, disruptable))
+			if(var_value == old_disruptable)
+				return
+			if(!var_value)
+				UnregisterSignal(parent, list(COMSIG_ATOM_EMP_ACT, COMSIG_ATOM_EX_ACT, COMSIG_OBJ_TAKE_DAMAGE, COMSIG_ITEM_ATTACK))
+			else
+				RegisterSignal(parent, COMSIG_ATOM_EMP_ACT, .proc/disrupt_emp)
+				RegisterSignal(parent, COMSIG_ATOM_EX_ACT, .proc/disrupt_ex_act)
+				if(isobj(parent))
+					RegisterSignal(parent, COMSIG_OBJ_TAKE_DAMAGE, .proc/disrupt_damage)
+					if(isitem(parent))
+						RegisterSignal(parent, COMSIG_ITEM_ATTACK, .proc/disrupt_attack)
+		if(NAMEOF(src, old_lifespan))
+			if(var_value == old_lifespan)
+				return
+			if(var_value == CHAMELEON_NO_EXPIRE)
+				deltimer(timer_id)
+				timer_id = null
+				return
+			recalculate_time_left(lifespan - old_lifespan)
+
 /datum/component/chameleon/proc/cham_examine(mob/source)
-	if(D.hud.mobShouldSee(source))
-		to_chat(source, description)
+	if(cham.hud.mobShouldSee(source))
+		to_chat(source, cham.desc)
 		return COMPONENT_STOP_EXAMINE
 
 /datum/component/chameleon/proc/cham_article(datum/source, mob/M, list/overrides)
-	if(D.hud.mobShouldSee(source))
-		overrides[EXAMINE_POSITION_ARTICLE] = D.gender == PLURAL ? "some" : "a"
+	if(cham.hud.mobShouldSee(source))
+		overrides[EXAMINE_POSITION_ARTICLE] = cham.gender == PLURAL ? "some" : "a"
 		return COMPONENT_EXNAME_CHANGED
 
-/datum/component/chameleon/proc/build_worn_cham(datum/source, list/standing, state, default_layer, default_icon_file, isinhands, femaleuniform)
-	if(!isinhands || !ismob(loc))
-		return
+/datum/component/chameleon/proc/build_held_cham(datum/source, mutable_appearance/standing, list/offsets, state, default_layer, default_icon_file, isinhands, femaleuniform)
 	var/obj/item/I = parent
-	var/mob/M = loc
+	if(!isinhands || !ismob(I.loc))
+		return
+	var/mob/M = I.loc
 	var/left_rights = M.get_held_index_of_item(I) % 2
-	var/icon_file = left_rights ? appearance.lefthand_icon : appearance.righthand_icon
-	var/list/worn_overlays = left_rights ? appearance.left_overlays : appearance.right_overlays
-	var/hands_layer = appearance.worn_layer
-	if(!hands_layer) //I wish this thing was more standarized...
-		if(iscarbon(M))
-			hands_layer = HANDS_LAYER
-		else if(isdrone(M))
-			hands_layer = DRONE_HANDS_LAYER
-		else if(isdevil(M))
-			hands_layer = DEVIL_HANDS_LAYER
-		else if(isgorilla(M))
-			hands_layer = GORILLA_HANDS_LAYER
-		else if(isguardian(M))
-			hands_layer = GUARDIAN_HANDS_LAYER
-		else
-			hands_layer = HANDS_LAYER
-	var/mutable_appearence/MA = mutable_appearance(icon_file, appearance.worn_state, -hands_layer)
-	if(length(overlays))
-		MA.overlays.Add(worn_overlays)
-	MA.alpha = appearance.worn_alpha
-	MA.color = appearance.worn_color
-	standing[1] = MA
-	return COMPONENT_BUILT_ICON
+	active_inhand = cham.hud.add_to_hud(standing, left_rights ?  cham.left_inhand : cham.right_inhand, cham.holo_mask, cham.alt_holo_mask)
+	active_inhand.layer = cham.worn_layer || M.get_hands_layer()
 
 /datum/component/chameleon/proc/disrupt_anim()
 	if(anim_busy)
 		return
 	anim_busy = TRUE
-	var/A1 = max(disguiser.alpha - rand(30, 50), 0)
-	var/A2 = disguiser.alpha
+	var/A1 = max(disguise.alpha - rand(30, 50), 0)
+	var/A2 = disguise.alpha
 	var/C1 = list(rgb(77,77,77), rgb(150,150,150), rgb(28,28,28), rgb(0,0,0))
-	var/C2 = disguiser.color
-	if(disguiser.override)
-		disguiser.override = FALSE
-		addtimer(VARSET_CALLBACK(disguiser, override, TRUE), 1)
-		addtimer(VARSET_CALLBACK(disguiser, override, FALSE), 2)
-		addtimer(VARSET_CALLBACK(disguiser, override, TRUE), 3)
-	animate(disguiser, alpha = A1, color = C1, time = 2)
-	animate(disguiser, alpha = A2, color = C2, time = 2)
+	var/C2 = disguise.color
+	for(var/A in list(disguise, active_inhand))
+		var/image/I = A
+		if(I?.override)
+			I.override = FALSE
+			addtimer(VARSET_CALLBACK(I, override, TRUE), 1)
+			addtimer(VARSET_CALLBACK(I, override, FALSE), 2)
+			addtimer(VARSET_CALLBACK(I, override, TRUE), 3)
+	animate(disguise, alpha = A1, color = C1, time = 2)
+	animate(disguise, alpha = A2, color = C2, time = 2)
 	addtimer(VARSET_CALLBACK(src, anim_busy, FALSE), 8)
 
 /datum/component/chameleon/proc/disrupt_ex_act(datum/source, severity, target)
@@ -188,21 +203,24 @@
 	INVOKE_ASYNC(src, .proc/disrupt_anim)
 	recalculate_time_left(2 MINUTES * severity)
 
-/datum/component/chameleon/proc/disrupt_obj(datum/source, damage_amount, damage_type, damage_flag, attack_dir, armour_penetration)
+/datum/component/chameleon/proc/disrupt_damage(datum/source, damage_amount, damage_type, damage_flag, attack_dir, armour_penetration)
 	INVOKE_ASYNC(src, .proc/disrupt_anim)
 	recalculate_time_left(3 SECONDS * damage_amount)
 
-/datum/component/chameleon/proc/disrupt_item(datum/source, mob/living/target, mob/living/user)
+/datum/component/chameleon/proc/disrupt_attack(datum/source, mob/living/target, mob/living/user)
+	var/obj/O = parent
+	INVOKE_ASYNC(src, .proc/disrupt_anim)
+	recalculate_time_left(20 + 2 SECONDS * O.force)
 
 /datum/component/chameleon/proc/recalculate_time_left(modifier)
-	if(time_left = CHAMELEON_NO_EXPIRE)
+	if(lifespan == CHAMELEON_NO_EXPIRE)
 		return
 	expiration_date += modifier
-	var/n_time_left = expiration_date - world.time
-	if(n_time_left < 0)
+	var/new_lifespan = expiration_date - world.time
+	if(new_lifespan < 0)
 		if(!QDELETED(src))
 			qdel(src)
 		return
-	timer_id = addtimer(CALLBACK(src, .proc/unmodify) n_time_left, TIMER_UNIQUE|TIMER_OVERRIDE|TIMER_NO_HASH_WAIT|TIMER_STOPPABLE)
+	timer_id = addtimer(CALLBACK(src, .proc/unmodify), new_lifespan, TIMER_UNIQUE|TIMER_OVERRIDE|TIMER_NO_HASH_WAIT|TIMER_STOPPABLE)
 
 #undef CHAMELEON_NO_EXPIRE

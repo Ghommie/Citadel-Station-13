@@ -196,8 +196,7 @@
 #define COMSIG_ITEM_EQUIPPED "item_equip"						//from base of obj/item/equipped(): (/mob/equipper, slot)
 #define COMSIG_ITEM_DROPPED "item_drop"							//from base of obj/item/dropped(): (mob/user)
 #define COMSIG_ITEM_PICKUP "item_pickup"						//from base of obj/item/pickup(): (/mob/taker)
-#define COMSIG_ITEM_BUILD_WORN_ICON "item_build_worn_icon"		//from base of obj/item/build_worn_icon: (list/standing, state, default_layer, default_icon_file, isinhands, femaleuniform)
-	#define COMPONENT_BUILT_ICON 1								//at this point the build worn icon proc will proceed to use standing[1] instead of building the original item's mutable appearance and overlays.
+#define COMSIG_ITEM_BUILD_WORN_ICON "item_build_worn_icon"		//from base of obj/item/build_worn_icon: (mutable_appearance/standing, list/offsets, state, default_layer, default_icon_file, isinhands, femaleuniform)
 #define COMSIG_ITEM_ATTACK_ZONE "item_attack_zone"				//from base of mob/living/carbon/attacked_by(): (mob/living/carbon/target, mob/living/user, hit_zone)
 #define COMSIG_ITEM_IMBUE_SOUL "item_imbue_soul" 				//return a truthy value to prevent ensouling, checked in /obj/effect/proc_holder/spell/targeted/lichdom/cast(): (mob/user)
 #define COMSIG_ITEM_HIT_REACT "item_hit_react"					//from base of obj/item/hit_reaction(): (list/args)

@@ -316,6 +316,9 @@ GLOBAL_LIST_EMPTY(parasites) //all currently existing/living guardians
 /mob/living/simple_animal/hostile/guardian/regenerate_icons()
 	update_inv_hands()
 
+/mob/living/simple_animal/hostile/guardian/get_hands_layer()
+	return GUARDIAN_HANDS_LAYER
+
 //MANIFEST, RECALL, TOGGLE MODE/LIGHT, SHOW TYPE
 
 /mob/living/simple_animal/hostile/guardian/proc/Manifest(forced)

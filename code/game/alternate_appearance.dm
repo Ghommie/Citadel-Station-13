@@ -194,20 +194,24 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 	if(alt_appearance_type)
 		alt_appearance = new alt_appearance_type(key ? "[key]_alt" : null)
 
-/datum/atom_hud/alternate_appearance/shared/proc/register_appearance(atom/A, id)
+/datum/atom_hud/alternate_appearance/shared/proc/register_appearance(atom/A, id, create_copy = TRUE)
 	if(!A)
 		return
-	var/disguise = id || "[REF(A)]" //must be a text string
-	var/image/I = image(A.icon, A.icon_state, A.layer)
-	I.copy_overlays(A)
+	var/disguise = id || A //shouldn't be a number, really
+	if(alt_appearance)
+		INVOKE_ASYNC(alt_appearance, .proc/register_appearance, A, disguise, TRUE) //create_copy = TRUE, we are not going to use the same atom here.
+	var/atom/I
+	if(create_copy)
+		I = image(A.icon, A.icon_state, A.layer)
+		I.copy_overlays(A)
+	else
+		I = A // mostly for mutable_appearances/images
 	I.override = override_appearance
 	I.alpha = CLAMP(round(A.alpha * alpha_multiplier), 0, 255)
 	appearances[disguise] = I
-	if(alt_appearance)
-		INVOKE_ASYNC(alt_appearance, .proc/register_appearance, A, disguise)
 	return I
 
-/datum/atom_hud/alternate_appearance/shared/add_to_hud(atom/A, disguise)
+/datum/atom_hud/alternate_appearance/shared/add_to_hud(atom/A, disguise, ...)
 	if(!A || (A.alternate_appearances && A.alternate_appearances[appearance_key]))
 		return FALSE
 	var/image/C = appearances[disguise]
@@ -217,7 +221,9 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 	I.appearance = C
 	LAZYSET(A.hud_list, appearance_key, I)
 	if(alt_appearance)
-		INVOKE_ASYNC(alt_appearance, /datum/atom_hud.proc/add_to_hud, arglist(args))
+		var/list/arguments = list(alt_appearance, /datum/atom_hud.proc/add_to_hud)
+		arguments += args.Copy(3)
+		INVOKE_ASYNC(arglist(arguments))
 	. = ..() //our return value differs from the parent, should be set.
 	hudatoms[A] = disguise // Yes, we are using hudatoms as an associative list.
 
@@ -244,28 +250,26 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 /datum/atom_hud/alternate_appearance/shared/chameleon
 	appearance_key = CHAMELEON_HUD
 	var/use_alt_holo_mask = FALSE
-	alt_appearance_type = /datum/atom_hud/alternate_appearance/chameleon/spectacles_view
+	alt_appearance_type = /datum/atom_hud/alternate_appearance/shared/chameleon/spectacles_view
 
 /datum/atom_hud/alternate_appearance/shared/chameleon/mobShouldSee(mob/M)
-	if(!isobserver(source) && !HAS_TRAIT(source, TRAIT_SPECTACLES_VIEW))
+	if(!isobserver(M) && !HAS_TRAIT(M, TRAIT_SPECTACLES_VIEW))
 		return TRUE
 
 /datum/atom_hud/alternate_appearance/shared/chameleon/add_to_hud(atom/A, disguise, image/mask, image/alt_mask)
 	. = ..()
 	if(!.)
 		return
-	var/image/M = use_alt_holo_mask ? args[4] : args[3]
-	apply_mask(. , M)
+	var/image/M = use_alt_holo_mask ? alt_mask : mask
+	if(M)
+		apply_mask(. , M)
 
 #if DM_VERSION >= 513
 
 /datum/atom_hud/alternate_appearance/shared/chameleon/proc/apply_mask(image/I, image/M)
-	if(M)
-		var/mutable_appearance/MA = new()
-		MA.appearance = H
-		target_rs = MA.generate_render_target()
-		I.filters += filter(type = "alpha", render_source = target_rs)
-		return MA
+	target_rs = M.generate_render_target()
+	I.filters += filter(type = "alpha", render_source = target_rs)
+	return M
 
 #else
 
@@ -286,22 +290,15 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 
 /obj/item/chameleondisguiser
 	var/list/datum/chameleon_appearance/all_disguises //contains the current diguises.
-	var/image/holo_mask
-	var/image/alt_holo_mask
 	var/static/cham_id = 0
 	var/cham_limit = 12
 	var/slot_limit = 8
-
-/obj/item/chameleondisguiser/Initialize()
-	. = ..()
-	holo_mask = image('icons/effects/effects.dmi', "disguise_glitch")
-	alt_holo_mask = image('icons/effects/effects.dmi', "scanline")
 
 /obj/item/chameleondisguiser/proc/add_appearance(obj/O)
 	if(LAZYLEN(all_disguises) >= slot_limit)
 		//warning message about hardware limitations here
 		return
-	var/datum/chameleon_appearance/CA = new(O)
+	var/datum/chameleon_appearance/CA = new(O, null, 20 MINUTES, "disguise_glitch", "scanline")
 	RegisterSignal(CA, COMSIG_PARENT_PREQDELETED, .proc/clear_from_list)
 	LAZYADD(all_disguises, CA)
 
@@ -316,10 +313,10 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 		if(num_cham >= cham_limit)
 			//warning message about hardware limitations here
 			return
-	var/datum/component/chameleon/C = O.AddComponent(/datum/component/chameleon, CA, holo_mask, alt_holo_mask)
+	O.AddComponent(/datum/component/chameleon, CA)
 
 /obj/item/chameleondisguiser/proc/remove_appearance(datum/component/chameleon/C, datum/chameleon_appearance/CA)
-	if(!(C.appearance in all_disguises))
+	if(!(C.cham in all_disguises))
 		//warning message hinting incompatible holographic appearance of different source.
 		return
 	qdel(C)

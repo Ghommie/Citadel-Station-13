@@ -574,49 +574,45 @@ generate/load female uniform sprites matching all previously decided variables
 */
 /obj/item/proc/build_worn_icon(var/state = "", var/default_layer = 0, var/default_icon_file = null, var/isinhands = FALSE, var/femaleuniform = NO_FEMALE_UNIFORM)
 
-	var/list/L = list(null) //an empty list with len of 1, for signals.
+	//Find a valid icon file from variables+arguments
+	var/file2use
+	if(!isinhands && alternate_worn_icon)
+		file2use = alternate_worn_icon
+	if(!file2use)
+		file2use = default_icon_file
+
+	//Find a valid layer from variables+arguments
+	var/layer2use
+	if(alternate_worn_layer)
+		layer2use = alternate_worn_layer
+	if(!layer2use)
+		layer2use = default_layer
+
 	var/mutable_appearance/standing
-	if(SEND_SIGNAL(src, COMSIG_ITEM_BUILD_WORN_ICON, L, state, default_layer, default_icon_file, isinhands, femaleuniform) & COMPONENT_BUILT_ICON)
-		standing = L[1]
+	if(femaleuniform)
+		standing = wear_female_version(state,file2use,layer2use,femaleuniform)
 	if(!standing)
-		//Find a valid icon file from variables+arguments
-		var/file2use
-		if(!isinhands && alternate_worn_icon)
-			file2use = alternate_worn_icon
-		if(!file2use)
-			file2use = default_icon_file
+		standing = mutable_appearance(file2use, state, -layer2use)
 
-		//Find a valid layer from variables+arguments
-		var/layer2use
-		if(alternate_worn_layer)
-			layer2use = alternate_worn_layer
-		if(!layer2use)
-			layer2use = default_layer
+	//Get the overlays for this item when it's being worn
+	//eg: ammo counters, primed grenade flashes, etc.
+	var/list/worn_overlays = worn_overlays(isinhands, file2use)
+	if(worn_overlays && worn_overlays.len)
+		standing.overlays.Add(worn_overlays)
 
-		var/mutable_appearance/standing
-		if(femaleuniform)
-			standing = wear_female_version(state,file2use,layer2use,femaleuniform)
-		if(!standing)
-			standing = mutable_appearance(file2use, state, -layer2use)
-
-		//Get the overlays for this item when it's being worn
-		//eg: ammo counters, primed grenade flashes, etc.
-		var/list/worn_overlays = worn_overlays(isinhands, file2use)
-		if(worn_overlays && worn_overlays.len)
-			standing.overlays.Add(worn_overlays)
-
-		standing.alpha = alpha
-		standing.color = color
+	standing.alpha = alpha
+	standing.color = color
 
 	standing = center_image(standing, isinhands ? inhand_x_dimension : worn_x_dimension, isinhands ? inhand_y_dimension : worn_y_dimension)
 
 	//Handle held offsets
-	var/mob/M = loc
-	if(istype(M))
-		var/list/L = get_held_offsets()
-		if(L)
-			standing.pixel_x += L["x"] //+= because of center()ing
-			standing.pixel_y += L["y"]
+	var/list/L = get_held_offsets()
+	if(L)
+		standing.pixel_x += L["x"] //+= because of center()ing
+		standing.pixel_y += L["y"]
+
+
+	SEND_SIGNAL(src, COMSIG_ITEM_BUILD_WORN_ICON, standing, L, state, default_layer, default_icon_file, isinhands, femaleuniform)
 
 	return standing
 
