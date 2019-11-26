@@ -48,6 +48,16 @@
 	I.layer = ABOVE_HUD_LAYER
 	I.plane = ABOVE_HUD_PLANE
 	I.appearance_flags |= NO_CLIENT_COLOR
+	if(slot != SLOT_HANDS)
+		for(var/i in I.hud_list)
+			if(islist(i))
+				var/list/L = i
+				for(var/a in L)
+					var/image/holder = a
+					holder.plane = ABOVE_HUD_PLANE
+				continue
+			var/image/holder = I.hud_list[i]
+			holder.plane = ABOVE_HUD_PLANE
 	var/not_handled = FALSE
 	switch(slot)
 		if(SLOT_BACK)

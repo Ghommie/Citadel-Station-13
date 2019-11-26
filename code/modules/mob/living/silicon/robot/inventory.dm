@@ -89,6 +89,15 @@
 		O.mouse_opacity = initial(O.mouse_opacity)
 		O.layer = ABOVE_HUD_LAYER
 		O.plane = ABOVE_HUD_PLANE
+		for(var/i in O.hud_list)
+			if(islist(i))
+				var/list/L = i
+				for(var/a in L)
+					var/image/holder = a
+					holder.plane = ABOVE_HUD_PLANE
+				continue
+			var/image/holder = O.hud_list[i]
+			holder.plane = ABOVE_HUD_PLANE
 		observer_screen_update(O,TRUE)
 		O.forceMove(src)
 		if(istype(O, /obj/item/borg/sight))

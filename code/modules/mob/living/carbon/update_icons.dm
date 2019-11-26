@@ -231,6 +231,7 @@
 /obj/item/proc/worn_overlays(isinhands = FALSE, icon_file)
 	. = list()
 
+
 /mob/living/carbon/update_body()
 	update_body_parts()
 

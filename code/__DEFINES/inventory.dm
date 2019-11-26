@@ -55,6 +55,7 @@
 #define SLOT_LEGCUFFED		19
 #define SLOT_GENERC_DEXTROUS_STORAGE	20
 
+
 #define SLOTS_AMT			20 // Keep this up to date!
 
 //I hate that this has to exist

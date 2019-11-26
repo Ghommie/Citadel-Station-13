@@ -190,6 +190,12 @@
 		I.pixel_y = initial(I.pixel_y)
 		I.transform = initial(I.transform)
 		for(var/i in I.hud_list)
+			if(islist(i))
+				var/list/L = i
+				for(var/a in L)
+					var/image/holder = a
+					holder.plane = ABOVE_HUD_PLANE
+				continue
 			var/image/holder = I.hud_list[i]
 			holder.plane = ABOVE_HUD_PLANE
 		return hand_index || TRUE
@@ -331,8 +337,14 @@
 		I.layer = initial(I.layer)
 		I.plane = initial(I.plane)
 		for(var/i in I.hud_list)
+			if(islist(i))
+				var/list/L = i
+				for(var/a in L)
+					var/image/holder = a
+					holder.plane = initial(holder.plane)
+				continue
 			var/image/holder = I.hud_list[i]
-			holder.plane = initial(I.plane)
+			holder.plane = initial(holder.plane)
 		I.appearance_flags &= ~NO_CLIENT_COLOR
 		if(!no_move && !(I.item_flags & DROPDEL))	//item may be moved/qdel'd immedietely, don't bother moving it
 			if (isnull(newloc))

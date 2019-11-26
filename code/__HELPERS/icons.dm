@@ -1204,7 +1204,7 @@ GLOBAL_LIST_INIT(freon_color_matrix, list("#2E5E69", "#60A2A8", "#A1AFB1", rgb(0
 
 #if DM_VERSION >= 513
 
-//Applies pattern overlay that does not go outside the object
+//Applies pattern overlay that does not go outside the object. copied from a example commit of 513 potentials by Anturk. will probably remove later.
 /proc/generate_pattern(atom/target,pattern_icon,pattern_icon_state,pattern_alpha)
 	var/mutable_appearance/MA = mutable_appearance(pattern_icon,pattern_icon_state)
 	MA.alpha = pattern_alpha
@@ -1216,15 +1216,8 @@ GLOBAL_LIST_INIT(freon_color_matrix, list("#2E5E69", "#60A2A8", "#A1AFB1", rgb(0
 GLOBAL_VAR_INIT(render_target_id,1)
 
 /atom/proc/generate_render_target()
-	render_target = "rs_[GLOB.render_target_id++]"
+	if(!render_target)
+		render_target = "rs_[GLOB.render_target_id++]"
 	return render_target
-
-#else
-
-/proc/generate_pattern()
-	return
-
-/atom/proc/generate_render_target()
-	return
 
 #endif

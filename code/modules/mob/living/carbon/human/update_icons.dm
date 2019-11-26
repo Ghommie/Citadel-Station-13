@@ -600,9 +600,6 @@ generate/load female uniform sprites matching all previously decided variables
 	if(worn_overlays && worn_overlays.len)
 		standing.overlays.Add(worn_overlays)
 
-	standing.alpha = alpha
-	standing.color = color
-
 	standing = center_image(standing, isinhands ? inhand_x_dimension : worn_x_dimension, isinhands ? inhand_y_dimension : worn_y_dimension)
 
 	//Handle held offsets
@@ -611,6 +608,8 @@ generate/load female uniform sprites matching all previously decided variables
 		standing.pixel_x += L["x"] //+= because of center()ing
 		standing.pixel_y += L["y"]
 
+	standing.alpha = alpha
+	standing.color = color
 
 	SEND_SIGNAL(src, COMSIG_ITEM_BUILD_WORN_ICON, standing, L, state, default_layer, default_icon_file, isinhands, femaleuniform)
 

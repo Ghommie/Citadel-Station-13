@@ -22,8 +22,8 @@
 	hud = C || GLOB.huds[ALT_APPEARANCE_HUD_CHAMELEON]
 	id = "cham_[++cham_id]"
 	timer = _timer || timer
-	holo_mask = image('icons/effects/effects.dmi', _holo_mask)
-	alt_holo_mask = image('icons/effects/effects.dmi', _alt_holo_mask)
+	holo_mask = _holo_mask
+	alt_holo_mask = _alt_holo_mask
 	if(A)
 		disguise_as(A)
 
@@ -43,6 +43,25 @@
 		right_inhand = I.build_worn_icon(worn_state, HANDS_LAYER, I.righthand_file, TRUE)
 		hud.register_appearance(right_inhand, create_copy = TRUE)
 
+#if DM_VERSION >= 513
+
+/datum/chameleon_appearance/proc/apply_disguise_mask(atom/A)
+	if(holo_mask)
+		var/image/I = A.hud_list[hud.appearance_key]
+		var/target_rs = holo_mask.generate_render_target()
+		I.filters += filter(type = "alpha", render_source = target_rs)
+	if(alt_holo_mask && hud.alt_appearance)
+		var/image/A_I = A.hud_list[hud.alt_appearance.appearance_key]
+		var/target_rs = alt_holo_mask.generate_render_target()
+		A_I.filters += filter(type = "alpha", render_source = target_rs)
+
+#else
+
+/datum/chameleon_appearance/proc/apply_disguise_mask(atom/A)
+	return
+
+#endif
+
 /datum/chameleon_appearance/Destroy()
 	for(var/A in active_components)
 		var/datum/component/chameleon/C = A
@@ -52,6 +71,10 @@
 		hud.unregister_appearance(left_inhand) //it'll delete them.
 	if(right_inhand)
 		hud.unregister_appearance(right_inhand) //idem
+	if(holo_mask)
+		QDEL_NULL(holo_mask)
+	if(alt_holo_mask)
+		QDEL_NULL(alt_holo_mask)
 	return ..()
 
 ////////////////////////////////////////
@@ -68,11 +91,14 @@
 	var/image/active_inhand
 
 /datum/component/chameleon/Initialize(datum/chameleon_appearance/CA)
-	if(!ismovableatom(parent) || !CA || !istype(CA))
+	if(!isatom(parent) || !CA || !istype(CA))
 		return COMPONENT_INCOMPATIBLE
-	disguise = CA.hud.add_to_hud(parent, CA.id, CA.holo_mask, CA.alt_holo_mask)
+	var/atom/A = parent
+	disguise = CA.hud.add_to_hud(A, CA.id)
 	if(!disguise)
 		return COMPONENT_INCOMPATIBLE
+	disguise = A.hud_list[CA.hud.appearance_key]
+	CA.apply_disguise_mask(A)
 	LAZYADD(CA.active_components, src)
 	cham = CA
 	RegisterSignal(CA, COMSIG_PARENT_PREQDELETED, .proc/unmodify)

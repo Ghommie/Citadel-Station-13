@@ -61,6 +61,15 @@
 	I.forceMove(src)
 	I.layer = ABOVE_HUD_LAYER
 	I.plane = ABOVE_HUD_PLANE
+	for(var/i in I.hud_list)
+		if(islist(i))
+			var/list/L = i
+			for(var/a in L)
+				var/image/holder = a
+				holder.plane = ABOVE_HUD_PLANE
+			continue
+		var/image/holder = I.hud_list[i]
+		holder.plane = ABOVE_HUD_PLANE
 
 	switch(slot)
 		if(SLOT_HEAD)

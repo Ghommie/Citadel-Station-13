@@ -214,20 +214,18 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 	appearances[disguise] = I
 	return I
 
-/datum/atom_hud/alternate_appearance/shared/add_to_hud(atom/A, disguise, ...)
+/datum/atom_hud/alternate_appearance/shared/add_to_hud(atom/A, disguise)
 	if(!A || (A.alternate_appearances && A.alternate_appearances[appearance_key]))
 		return FALSE
+	if(alt_appearance)
+		INVOKE_ASYNC(alt_appearance, /datum/atom_hud.proc/add_to_hud, A, disguise)
 	var/image/C = appearances[disguise]
 	if(!C)
-		return
+		return FALSE
 	var/image/I = image(loc = A)
 	I.appearance = C
 	LAZYSET(A.hud_list, appearance_key, I)
-	if(alt_appearance)
-		var/list/arguments = list(alt_appearance, /datum/atom_hud.proc/add_to_hud)
-		arguments += args.Copy(3)
-		INVOKE_ASYNC(arglist(arguments))
-	. = ..() //our return value differs from the parent, should be set.
+	. = ..()
 	hudatoms[A] = disguise // Yes, we are using hudatoms as an associative list.
 
 /datum/atom_hud/alternate_appearance/shared/proc/switch_hud(mob/M)
@@ -253,11 +251,8 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 
 /datum/atom_hud/alternate_appearance/shared/remove_from_hud(atom/A, sync = TRUE)
 	. = ..()
-	if(!.)
-		return
-	if(sync && alt_appearance)
+	if(. && sync && alt_appearance)
 		INVOKE_ASYNC(alt_appearance, /datum/atom_hud.proc/remove_from_hud, A)
-
 
 //alternate_appearance / component hybrid frankenstein. The other half can be found in components/chameleon.dm.
 /datum/atom_hud/alternate_appearance/shared/chameleon
@@ -268,28 +263,6 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 /datum/atom_hud/alternate_appearance/shared/chameleon/mobShouldSee(mob/M)
 	if(!isobserver(M) && !HAS_TRAIT(M, TRAIT_SPECTACLES_VIEW))
 		return TRUE
-
-/datum/atom_hud/alternate_appearance/shared/chameleon/add_to_hud(atom/A, disguise, image/mask, image/alt_mask)
-	. = ..()
-	if(!.)
-		return
-	var/image/M = use_alt_holo_mask ? alt_mask : mask
-	if(M)
-		apply_mask(. , M)
-
-#if DM_VERSION >= 513
-
-/datum/atom_hud/alternate_appearance/shared/chameleon/proc/apply_mask(image/I, image/M)
-	target_rs = M.generate_render_target()
-	I.filters += filter(type = "alpha", render_source = target_rs)
-	return M
-
-#else
-
-/datum/atom_hud/alternate_appearance/shared/chameleon/proc/apply_mask()
-	return
-
-#endif
 
 /datum/atom_hud/alternate_appearance/shared/chameleon/spectacles_view
 	appearance_key = CHAM_SPECTACLES_HUD
@@ -313,6 +286,8 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 
 /obj/item/chameleondisguiser
 	var/list/datum/chameleon_appearance/all_disguises //contains the current diguises.
+	var/holo_state = "disguise_glitch"
+	var/alt_holo_state = "scanline"
 	var/static/cham_id = 0
 	var/cham_limit = 12
 	var/slot_limit = 8
@@ -321,7 +296,9 @@ datum/atom_hud/alternate_appearance/basic/onePerson
 	if(LAZYLEN(all_disguises) >= slot_limit)
 		//warning message about hardware limitations here
 		return
-	var/datum/chameleon_appearance/CA = new(O, null, 20 MINUTES, "disguise_glitch", "scanline")
+	var/image/holo_mask = image('icons/effects/effects.dmi', holo_state)
+	var/image/alt_holo_mask = image('icons/effects/effects.dmi', alt_holo_state)
+	var/datum/chameleon_appearance/CA = new(O, null, 20 MINUTES, holo_mask, alt_holo_mask)
 	RegisterSignal(CA, COMSIG_PARENT_PREQDELETED, .proc/clear_from_list)
 	LAZYADD(all_disguises, CA)
 
