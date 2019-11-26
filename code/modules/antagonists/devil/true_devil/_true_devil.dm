@@ -218,6 +218,3 @@
 
 /mob/living/carbon/true_devil/update_damage_overlays() //devils don't have damage overlays.
 	return
-
-/mob/living/carbon/true_devil/get_hands_layer()
-	return DEVIL_HANDS_LAYER

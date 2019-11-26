@@ -52,6 +52,3 @@
 
 /mob/living/simple_animal/hostile/gorilla/regenerate_icons()
 	update_inv_hands()
-
-/mob/living/simple_animal/hostile/gorilla/get_hands_layer()
-	return GORILLA_HANDS_LAYER

@@ -139,6 +139,3 @@
 			. = 0
 		if(REPAIRDRONE,SCOUTDRONE,CLOCKDRONE)
 			. = -6
-
-/mob/living/simple_animal/drone/get_hands_layer()
-	return DRONE_HANDS_LAYER

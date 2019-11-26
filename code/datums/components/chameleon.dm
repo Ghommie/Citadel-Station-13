@@ -147,7 +147,7 @@
 					RegisterSignal(parent, COMSIG_OBJ_TAKE_DAMAGE, .proc/disrupt_damage)
 					if(isitem(parent))
 						RegisterSignal(parent, COMSIG_ITEM_ATTACK, .proc/disrupt_attack)
-		if(NAMEOF(src, old_lifespan))
+		if(NAMEOF(src, lifespan))
 			if(var_value == old_lifespan)
 				return
 			if(var_value == CHAMELEON_NO_EXPIRE)
@@ -173,7 +173,7 @@
 	var/mob/M = I.loc
 	var/left_rights = M.get_held_index_of_item(I) % 2
 	active_inhand = cham.hud.add_to_hud(standing, left_rights ?  cham.left_inhand : cham.right_inhand, cham.holo_mask, cham.alt_holo_mask)
-	active_inhand.layer = cham.worn_layer || M.get_hands_layer()
+	active_inhand.layer = cham.worn_layer || default_layer
 
 /datum/component/chameleon/proc/disrupt_anim()
 	if(anim_busy)
