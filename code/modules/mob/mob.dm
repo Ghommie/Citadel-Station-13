@@ -322,6 +322,8 @@
 	if(SEND_SIGNAL(A, COMSIG_PARENT_PRE_EXAMINE) & COMPONENT_STOP_EXAMINE)
 		return
 	A.examine(src)
+	var/list/result = A.examine(src)
+	to_chat(src, result.Join("\n"))
 
 //same as above
 //note: ghosts can point, this is intended
