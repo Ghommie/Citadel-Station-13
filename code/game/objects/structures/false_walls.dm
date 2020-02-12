@@ -35,6 +35,33 @@
 /obj/structure/falsewall/Initialize()
 	. = ..()
 	air_update_turf(TRUE)
+	if(loc && isturf(loc))
+		RegisterSignal(loc, COMSIG_TURF_CHANGE, .proc/on_turf_change)
+		loc.vis_contents += src
+
+/obj/structure/falsewall/proc/on_turf_change(turf/source)
+	//the turf vis_contents is cut on Initialize(), which is called after the signal, that's why this is required.
+	UNTIL(!loc || loc.flags_1 & INITIALIZED_1)
+	if(!isturf(loc))
+		return
+	RegisterSignal(loc, COMSIG_TURF_CHANGE, .proc/on_turf_change)
+	loc.vis_contents += src
+
+//these things really shouldn't be moved, but singularities and meteor slugs say otherwise.
+/obj/structure/falsewall/Moved(atom/OldLoc, Dir, Forced = FALSE)
+	. = ..()
+	if(OldLoc && isturf(OldLoc))
+		OldLoc.vis_contents -= src
+		UnregisterSignal(loc, COMSIG_TURF_CHANGE)
+	if(loc && isturf(loc))
+		loc.vis_contents += src
+		RegisterSignal(T, COMSIG_TURF_CHANGE, .proc/on_turf_change)
+
+/obj/structure/falsewall/Destroy()
+	//moveToNullspace() / doMove(null) doesn't call Moved()
+	if(loc && isturf(loc))
+		loc.vis_contents -= src
+	return ..()
 
 /obj/structure/falsewall/ratvar_act()
 	new /obj/structure/falsewall/brass(loc)
